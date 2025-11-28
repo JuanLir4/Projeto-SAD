@@ -6,6 +6,7 @@ import sadExtractorLogo from './assets/logos/sad-extractor.png'
 const PAGES = {
   UPLOAD: 'upload',
   EDIT: 'edit',
+  EXPORT: 'export',
   HISTORY_REPORTS: 'historyReports',
   HISTORY_USERS: 'historyUsers',
   INDICATORS: 'indicators',
@@ -272,7 +273,7 @@ function UploadPage() {
 
   const handleFileSelect = (event) => {
     const files = Array.from(event.target.files)
-    setSelectedFiles(files)
+    setSelectedFiles((prev) => [...prev, ...files])
     // TODO: Integrar com backend - enviar arquivos
     // uploadFiles(files)
   }
@@ -280,7 +281,7 @@ function UploadPage() {
   const handleDrop = (event) => {
     event.preventDefault()
     const files = Array.from(event.dataTransfer.files)
-    setSelectedFiles(files)
+    setSelectedFiles((prev) => [...prev, ...files])
     // TODO: Integrar com backend - enviar arquivos
     // uploadFiles(files)
   }
@@ -291,6 +292,10 @@ function UploadPage() {
 
   const handleUploadClick = () => {
     fileInputRef.current?.click()
+  }
+
+  const handleRemoveFile = (index) => {
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index))
   }
 
   const handleUploadSubmit = () => {
@@ -307,8 +312,7 @@ function UploadPage() {
         <header className="config-header">
           <h1>Upload dos documentos</h1>
           <p>
-            Faça upload de arquivos PDF para extrair automaticamente os dados
-            dos laudos desejados.
+            Faça Upload de arquivos PDF para extrair automaticamente os dados dos laudos desejados.
           </p>
         </header>
 
@@ -355,33 +359,61 @@ function UploadPage() {
             <span className="upload-subtitle">
               Formatos suportados: PDF, DOCx
             </span>
-            {selectedFiles.length > 0 && (
-              <div className="upload-files-list">
-                <p>{selectedFiles.length} arquivo(s) selecionado(s)</p>
-                <button
-                  type="button"
-                  className="primary-button"
-                  onClick={handleUploadSubmit}
-                >
-                  Enviar Arquivos
-                </button>
-              </div>
-            )}
           </div>
+
+          {selectedFiles.length > 0 && (
+            <div className="uploaded-files-section">
+              <h3 className="uploaded-files-title">Nomes dos arquivos</h3>
+              <div className="uploaded-files-list">
+                {selectedFiles.map((file, index) => (
+                  <div key={index} className="uploaded-file-item">
+                    <div className="uploaded-file-checkmark">✓</div>
+                    <span className="uploaded-file-name">{file.name}</span>
+                    <button
+                      type="button"
+                      className="uploaded-file-clear"
+                      onClick={() => handleRemoveFile(index)}
+                    >
+                      Limpar
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {selectedFiles.length > 0 && (
+            <div className="upload-submit-container">
+              <button
+                type="button"
+                className="primary-button upload-submit-button"
+                onClick={handleUploadSubmit}
+              >
+                Carregar Dados
+              </button>
+            </div>
+          )}
         </section>
       </section>
     </main>
   )
 }
 
-function EditDataPage() {
+function EditDataPage({ onNavigate }) {
   const [selectedRows, setSelectedRows] = useState([])
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(4)
   const [laudos, setLaudos] = useState([
-    { id: 1, nome: 'Laudo_001.pdf', extraidos: 12, total: 30, confiabilidade: 40, acao: 'Revisar Campos' },
-    { id: 2, nome: 'Laudo_002.pdf', extraidos: 30, total: 30, confiabilidade: 100, acao: 'Prosseguir' },
-    { id: 3, nome: 'Laudo_003.pdf', extraidos: 21, total: 30, confiabilidade: 70, acao: 'Prosseguir' },
-    { id: 4, nome: 'Laudo_004.pdf', extraidos: 3, total: 30, confiabilidade: 10, acao: 'Descartado', descartado: true },
+    { id: 1, nome: 'Laudo_xxx.pdf', extraidos: 12, total: 30, confiabilidade: 40, acao: 'Revisar Campos', descartado: false },
+    { id: 2, nome: 'Laudo_xxx.pdf', extraidos: 30, total: 30, confiabilidade: 100, acao: 'Prosseguir', descartado: false },
+    { id: 3, nome: 'Laudo_xxx.pdf', extraidos: 21, total: 30, confiabilidade: 70, acao: 'Prosseguir', descartado: false },
+    { id: 4, nome: 'Laudo_xxx.pdf', extraidos: 3, total: 30, confiabilidade: 10, acao: 'Descartado', descartado: true },
   ])
+
+  const totalPages = Math.ceil(laudos.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const currentLaudos = laudos.slice(startIndex, endIndex)
 
   const handleSelectAll = () => {
     if (selectedRows.length === laudos.length) {
@@ -398,16 +430,19 @@ function EditDataPage() {
   }
 
   const handleDeleteAll = () => {
-    // TODO: Integrar com backend - excluir laudos selecionados
-    // deleteLaudos(selectedRows)
     setLaudos((prev) => prev.filter((l) => !selectedRows.includes(l.id)))
     setSelectedRows([])
   }
 
+  const handleDeleteRow = (id) => {
+    setLaudos((prev) => prev.filter((l) => l.id !== id))
+    setSelectedRows((prev) => prev.filter((rowId) => rowId !== id))
+  }
+
   const handleValidate = () => {
-    // TODO: Integrar com backend - validar dados selecionados
-    // validateData(selectedRows)
-    console.log('Validar dados:', selectedRows)
+    if (onNavigate) {
+      onNavigate(PAGES.EXPORT)
+    }
   }
 
   const getConfidenceClass = (confiabilidade) => {
@@ -415,6 +450,13 @@ function EditDataPage() {
     if (confiabilidade >= 50) return 'confidence-medium'
     if (confiabilidade >= 20) return 'confidence-low'
     return 'confidence-very-low'
+  }
+
+  const getActionClass = (acao) => {
+    if (acao === 'Prosseguir') return 'action-prosseguir'
+    if (acao === 'Revisar Campos') return 'action-revisar'
+    if (acao === 'Descartado') return 'action-descartado'
+    return ''
   }
 
   return (
@@ -427,7 +469,7 @@ function EditDataPage() {
 
         <section className="config-card upload-card">
           <div className="steps-bar">
-            <div className="step">
+            <div className="step step-completed">
               <span className="step-number">1</span>
               <span className="step-label">Upload</span>
             </div>
@@ -439,6 +481,10 @@ function EditDataPage() {
               <span className="step-number">3</span>
               <span className="step-label">Exportação</span>
             </div>
+          </div>
+
+          <div className="table-card-header">
+            <h2 className="table-header-title">Tabela padrão</h2>
           </div>
 
           <div className="edit-table-controls">
@@ -461,19 +507,43 @@ function EditDataPage() {
           </div>
 
           <div className="table-wrapper edit-table-wrapper">
-            <table className="users-table">
+            <table className="users-table edit-table">
               <thead>
                 <tr>
-                  <th>ID</th>
-                  <th>Nome do arquivo</th>
-                  <th>Dados extraídos</th>
-                  <th>%</th>
-                  <th>Confiabilidade</th>
-                  <th>Ação recomendada</th>
+                  <th>
+                    <input
+                      type="checkbox"
+                      checked={selectedRows.length === laudos.length && laudos.length > 0}
+                      onChange={handleSelectAll}
+                      className="table-checkbox"
+                    />
+                    ID
+                  </th>
+                  <th>
+                    Nome do arquivo
+                    <span className="sort-icon">⇅</span>
+                  </th>
+                  <th>
+                    Dados extraídos
+                    <span className="sort-icon">⇅</span>
+                  </th>
+                  <th>
+                    %
+                    <span className="sort-icon">⇅</span>
+                  </th>
+                  <th>
+                    Confiabilidade
+                    <span className="sort-icon">⇅</span>
+                  </th>
+                  <th>
+                    Ação recomendada
+                    <span className="sort-icon">⇅</span>
+                  </th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
-                {laudos.map((laudo) => (
+                {currentLaudos.map((laudo) => (
                   <tr
                     key={laudo.id}
                     className={laudo.descartado ? 'row-danger' : ''}
@@ -483,10 +553,16 @@ function EditDataPage() {
                         type="checkbox"
                         checked={selectedRows.includes(laudo.id)}
                         onChange={() => handleSelectRow(laudo.id)}
+                        className="table-checkbox"
                       />
                       {laudo.id}
                     </td>
-                    <td>{laudo.nome}</td>
+                    <td>
+                      <span className="file-link">
+                        {laudo.nome}
+                        <span className="file-link-icon">👁</span>
+                      </span>
+                    </td>
                     <td>
                       {laudo.extraidos}/{laudo.total}
                     </td>
@@ -496,12 +572,81 @@ function EditDataPage() {
                         className={`confidence-bar ${getConfidenceClass(laudo.confiabilidade)}`}
                       />
                     </td>
-                    <td>{laudo.acao}</td>
+                    <td>
+                      <span className={`action-badge ${getActionClass(laudo.acao)}`}>
+                        <span className="action-dot"></span>
+                        {laudo.acao}
+                      </span>
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        className="delete-row-btn"
+                        onClick={() => handleDeleteRow(laudo.id)}
+                        title="Excluir"
+                      >
+                        🗑️
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-      </div>
+          </div>
+
+          <div className="table-pagination">
+            <div className="pagination-left">
+              <span>Itens por página</span>
+              <select
+                className="pagination-select"
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(Number(e.target.value))
+                  setCurrentPage(1)
+                }}
+              >
+                <option value="4">4</option>
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="50">50</option>
+              </select>
+              <span className="pagination-info">
+                {startIndex + 1}-{Math.min(endIndex, laudos.length)} de {laudos.length}
+              </span>
+            </div>
+            <div className="pagination-right">
+              <button
+                type="button"
+                className="pagination-btn"
+                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+              >
+                &lt;
+              </button>
+              {Array.from({ length: Math.min(3, totalPages) }, (_, i) => {
+                const page = currentPage <= 2 ? i + 1 : currentPage - 1 + i
+                if (page > totalPages) return null
+                return (
+                  <button
+                    key={page}
+                    type="button"
+                    className={`pagination-btn ${currentPage === page ? 'pagination-btn-active' : ''}`}
+                    onClick={() => setCurrentPage(page)}
+                  >
+                    {page}
+                  </button>
+                )
+              })}
+              <button
+                type="button"
+                className="pagination-btn"
+                onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+              >
+                &gt;
+              </button>
+            </div>
+          </div>
 
           <div className="edit-footer-actions">
             <span className="selected-count">
@@ -513,7 +658,237 @@ function EditDataPage() {
               onClick={handleValidate}
             >
               Validar Dados
-        </button>
+            </button>
+          </div>
+        </section>
+      </section>
+    </main>
+  )
+}
+
+function ExportPage() {
+  const [selectedLaudos, setSelectedLaudos] = useState([2, 3])
+  const [exportFormat, setExportFormat] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(2)
+  const [laudos, setLaudos] = useState([
+    { id: 2, nome: 'Laudo_xxx.pdf', extraidos: 17, total: 17, confiabilidade: 100, acao: 'Prosseguir' },
+    { id: 3, nome: 'Laudo_xxx.pdf', extraidos: 12, total: 17, confiabilidade: 70, acao: 'Prosseguir' },
+  ])
+
+  const totalPages = Math.ceil(laudos.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const currentLaudos = laudos.slice(startIndex, endIndex)
+
+  const handleSelectAll = () => {
+    if (selectedLaudos.length === laudos.length) {
+      setSelectedLaudos([])
+    } else {
+      setSelectedLaudos(laudos.map((l) => l.id))
+    }
+  }
+
+  const handleSelectLaudo = (id) => {
+    setSelectedLaudos((prev) =>
+      prev.includes(id) ? prev.filter((laudoId) => laudoId !== id) : [...prev, id]
+    )
+  }
+
+  const handleExport = () => {
+    if (selectedLaudos.length === 0 || !exportFormat) {
+      alert('Selecione pelo menos um laudo e um formato de exportação')
+      return
+    }
+    console.log('Exportar laudos:', selectedLaudos, exportFormat)
+  }
+
+  const getConfidenceClass = (confiabilidade) => {
+    if (confiabilidade >= 80) return 'confidence-high'
+    if (confiabilidade >= 50) return 'confidence-medium'
+    if (confiabilidade >= 20) return 'confidence-low'
+    return 'confidence-very-low'
+  }
+
+  return (
+    <main className="main-layout main-config">
+      <section className="config-container">
+        <header className="config-header">
+          <h1>Exportação dos Laudos validados</h1>
+          <p>Exporte os dados que foram validados no formato que desejar.</p>
+        </header>
+
+        <section className="config-card upload-card">
+          <div className="steps-bar">
+            <div className="step step-completed">
+              <span className="step-number">1</span>
+              <span className="step-label">Upload</span>
+            </div>
+            <div className="step step-completed">
+              <span className="step-number">2</span>
+              <span className="step-label">Edição</span>
+            </div>
+            <div className="step step-active">
+              <span className="step-number">3</span>
+              <span className="step-label">Exportação</span>
+            </div>
+          </div>
+
+          <div className="table-card-header">
+            <h2 className="table-header-title">Tabela padrão</h2>
+          </div>
+
+          <div className="table-wrapper edit-table-wrapper">
+            <table className="users-table edit-table">
+              <thead>
+                <tr>
+                  <th>
+                    <input
+                      type="checkbox"
+                      checked={selectedLaudos.length === laudos.length && laudos.length > 0}
+                      onChange={handleSelectAll}
+                      className="table-checkbox"
+                    />
+                    ID
+                  </th>
+                  <th>
+                    Nome do arquivo
+                    <span className="sort-icon">⇅</span>
+                  </th>
+                  <th>
+                    Dados extraídos
+                    <span className="sort-icon">⇅</span>
+                  </th>
+                  <th>
+                    %
+                    <span className="sort-icon">⇅</span>
+                  </th>
+                  <th>
+                    Confiabilidade
+                    <span className="sort-icon">⇅</span>
+                  </th>
+                  <th>
+                    Ação recomendada
+                    <span className="sort-icon">⇅</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {currentLaudos.map((laudo) => (
+                  <tr key={laudo.id}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={selectedLaudos.includes(laudo.id)}
+                        onChange={() => handleSelectLaudo(laudo.id)}
+                        className="table-checkbox"
+                      />
+                      {laudo.id}
+                    </td>
+                    <td>
+                      <span className="file-link">
+                        {laudo.nome}
+                        <span className="file-link-icon">👁</span>
+                      </span>
+                    </td>
+                    <td>
+                      {laudo.extraidos}/{laudo.total}
+                    </td>
+                    <td>{laudo.confiabilidade}%</td>
+                    <td>
+                      <span
+                        className={`confidence-bar ${getConfidenceClass(laudo.confiabilidade)}`}
+                      />
+                    </td>
+                    <td>
+                      <button className="action-prosseguir-btn">
+                        {laudo.acao}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="table-pagination">
+            <div className="pagination-left">
+              <span>Itens por página</span>
+              <select
+                className="pagination-select"
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(Number(e.target.value))
+                  setCurrentPage(1)
+                }}
+              >
+                <option value="2">2</option>
+                <option value="4">4</option>
+                <option value="10">10</option>
+                <option value="20">20</option>
+              </select>
+              <span className="pagination-info">
+                {startIndex + 1}-{Math.min(endIndex, laudos.length)} de {laudos.length}
+              </span>
+            </div>
+            <div className="pagination-right">
+              <button
+                type="button"
+                className="pagination-btn"
+                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+              >
+                &lt;
+              </button>
+              {Array.from({ length: Math.min(3, totalPages) }, (_, i) => {
+                const page = currentPage <= 2 ? i + 1 : currentPage - 1 + i
+                if (page > totalPages) return null
+                return (
+                  <button
+                    key={page}
+                    type="button"
+                    className={`pagination-btn ${currentPage === page ? 'pagination-btn-active' : ''}`}
+                    onClick={() => setCurrentPage(page)}
+                  >
+                    {page}
+                  </button>
+                )
+              })}
+              <button
+                type="button"
+                className="pagination-btn"
+                onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+              >
+                &gt;
+              </button>
+            </div>
+          </div>
+
+          <div className="export-footer-actions">
+            <span className="selected-count">
+              {selectedLaudos.length} laudo(s) selecionado(s)
+            </span>
+            <div className="export-options">
+              <span>Opções para exportação dos laudos:</span>
+              <select
+                className="export-format-select"
+                value={exportFormat}
+                onChange={(e) => setExportFormat(e.target.value)}
+              >
+                <option value="">Selecionar formato</option>
+                <option value="pdf">PDF</option>
+                <option value="excel">Excel</option>
+                <option value="csv">CSV</option>
+              </select>
+              <button
+                type="button"
+                className="primary-button export-button"
+                onClick={handleExport}
+              >
+                Baixar laudos
+              </button>
+            </div>
           </div>
         </section>
       </section>
@@ -1090,6 +1465,38 @@ function ConfigPage() {
       totalAcessos: 10,
     },
   ])
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [showInativarModal, setShowInativarModal] = useState(false)
+  const [showReenviarModal, setShowReenviarModal] = useState(false)
+  const [showSuccessNotification, setShowSuccessNotification] = useState(false)
+  const [editingUser, setEditingUser] = useState(null)
+  const [userToAction, setUserToAction] = useState(null)
+  const [editForm, setEditForm] = useState({
+    nome: '',
+    senha: '',
+    funcao: '',
+  })
+  const [showCargoDropdown, setShowCargoDropdown] = useState(false)
+  const cargoDropdownRef = useRef(null)
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        cargoDropdownRef.current &&
+        !cargoDropdownRef.current.contains(event.target)
+      ) {
+        setShowCargoDropdown(false)
+      }
+    }
+
+    if (showCargoDropdown) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showCargoDropdown])
 
   const handleNewUserChange = (field, value) => {
     setNewUser((prev) => ({ ...prev, [field]: value }))
@@ -1100,11 +1507,6 @@ function ConfigPage() {
       alert('Preencha todos os campos')
       return
     }
-    // TODO: Integrar com backend - criar novo usuário
-    // createUser(newUser).then((user) => {
-    //   setUsers([...users, user])
-    //   setNewUser({ nome: '', email: '', funcao: '' })
-    // })
     const newId = users.length > 0 ? Math.max(...users.map((u) => u.id)) + 1 : 1
     setUsers([
       {
@@ -1118,24 +1520,89 @@ function ConfigPage() {
       ...users,
     ])
     setNewUser({ nome: '', email: '', funcao: '' })
+    setShowSuccessNotification(true)
+    setTimeout(() => {
+      setShowSuccessNotification(false)
+    }, 3000)
   }
 
   const handleInativar = (id) => {
-    // TODO: Integrar com backend - inativar usuário
-    // inativarUser(id)
-    console.log('Inativar usuário:', id)
+    const user = users.find((u) => u.id === id)
+    setUserToAction(user)
+    setShowInativarModal(true)
+  }
+
+  const confirmInativar = () => {
+    if (userToAction) {
+      setUsers((prev) => prev.filter((u) => u.id !== userToAction.id))
+    }
+    setShowInativarModal(false)
+    setUserToAction(null)
   }
 
   const handleEditar = (id) => {
-    // TODO: Integrar com backend - editar usuário
-    // editarUser(id)
-    console.log('Editar usuário:', id)
+    const user = users.find((u) => u.id === id)
+    setEditingUser(user)
+    setEditForm({
+      nome: user.nome,
+      senha: user.email,
+      funcao: user.tipo,
+    })
+    setShowEditModal(true)
+  }
+
+  const handleEditFormChange = (field, value) => {
+    setEditForm((prev) => ({ ...prev, [field]: value }))
+  }
+
+  const handleSaveEdit = () => {
+    if (editingUser) {
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === editingUser.id
+            ? {
+                ...u,
+                nome: editForm.nome,
+                email: editForm.senha,
+                tipo: editForm.funcao,
+              }
+            : u
+        )
+      )
+    }
+    setShowEditModal(false)
+    setEditingUser(null)
+    setEditForm({ nome: '', senha: '', funcao: '' })
+    setShowCargoDropdown(false)
+  }
+
+  const handleCloseEditModal = () => {
+    setShowEditModal(false)
+    setEditingUser(null)
+    setEditForm({ nome: '', senha: '', funcao: '' })
+    setShowCargoDropdown(false)
   }
 
   const handleReenviarEmail = (id) => {
+    const user = users.find((u) => u.id === id)
+    setUserToAction(user)
+    setShowReenviarModal(true)
+  }
+
+  const confirmReenviar = () => {
     // TODO: Integrar com backend - reenviar email
-    // reenviarEmail(id)
-    console.log('Reenviar email para usuário:', id)
+    console.log('Reenviar email para usuário:', userToAction?.id)
+    setShowReenviarModal(false)
+    setUserToAction(null)
+  }
+
+  const getCargoOptions = () => {
+    const cargoMap = {
+      Cadastro: 'Usuário Cadastral',
+      Gestão: 'Usuário Gestor',
+      Admin: 'Usuário Administrador',
+    }
+    return cargoMap[editForm.funcao] || editForm.funcao
   }
 
   return (
@@ -1145,6 +1612,13 @@ function ConfigPage() {
           <h1>Configurações dos usuários</h1>
           <p>Configurações e cadastros dos usuários no sistema</p>
         </header>
+
+        {showSuccessNotification && (
+          <div className="success-notification">
+            <div className="success-notification-icon">✓</div>
+            <span>Usuário criado</span>
+          </div>
+        )}
 
         <section className="config-card">
           <h2>Novo usuário</h2>
@@ -1193,62 +1667,237 @@ function ConfigPage() {
           </div>
         </section>
 
-          <section className="config-card table-card">
-            <header className="table-header">
-              <h2>Tabela padrão</h2>
-            </header>
-            <div className="table-wrapper">
-              <table className="users-table">
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>Nome</th>
-                    <th>E-mail</th>
-                    <th>Tipo</th>
-                    <th>Último acesso</th>
-                    <th>Total de acessos</th>
-                    <th>Ações</th>
+        <section className="config-card table-card">
+          <header className="table-header">
+            <h2>Tabela padrão</h2>
+          </header>
+          <div className="table-wrapper">
+            <table className="users-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Nome</th>
+                  <th>E-mail</th>
+                  <th>Tipo</th>
+                  <th>Último acesso</th>
+                  <th>Total de acessos</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.map((user) => (
+                  <tr key={user.id}>
+                    <td>{user.id.toString().padStart(2, '0')}</td>
+                    <td>{user.nome}</td>
+                    <td>{user.email}</td>
+                    <td>{user.tipo}</td>
+                    <td>{user.ultimoAcesso}</td>
+                    <td>{user.totalAcessos.toString().padStart(2, '0')}</td>
+                    <td className="actions-cell">
+                      <button
+                        type="button"
+                        className="tag-button tag-danger"
+                        onClick={() => handleInativar(user.id)}
+                      >
+                        Inativar
+                      </button>
+                      <button
+                        type="button"
+                        className="tag-button tag-primary"
+                        onClick={() => handleEditar(user.id)}
+                      >
+                        Editar
+                      </button>
+                      <button
+                        type="button"
+                        className="tag-button tag-secondary"
+                        onClick={() => handleReenviarEmail(user.id)}
+                      >
+                        Reenviar E-mail
+                      </button>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {users.map((user) => (
-                    <tr key={user.id}>
-                      <td>{user.id.toString().padStart(2, '0')}</td>
-                      <td>{user.nome}</td>
-                      <td>{user.email}</td>
-                      <td>{user.tipo}</td>
-                      <td>{user.ultimoAcesso}</td>
-                      <td>{user.totalAcessos.toString().padStart(2, '0')}</td>
-                      <td className="actions-cell">
-                        <button
-                          type="button"
-                          className="tag-button tag-danger"
-                          onClick={() => handleInativar(user.id)}
-                        >
-                          Inativar
-                        </button>
-                        <button
-                          type="button"
-                          className="tag-button tag-primary"
-                          onClick={() => handleEditar(user.id)}
-                        >
-                          Editar
-                        </button>
-                        <button
-                          type="button"
-                          className="tag-button tag-secondary"
-                          onClick={() => handleReenviarEmail(user.id)}
-                        >
-                          Reenviar E-mail
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </section>
+      </section>
+
+      {/* Modal de Editar Usuário */}
+      {showEditModal && (
+        <div className="modal-overlay" onClick={handleCloseEditModal}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Editar Usuário</h3>
+              <button
+                type="button"
+                className="modal-close"
+                onClick={handleCloseEditModal}
+              >
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="form-group">
+                <label>Nome</label>
+                <input
+                  className="field-input rectangular"
+                  value={editForm.nome}
+                  onChange={(e) => handleEditFormChange('nome', e.target.value)}
+                />
+              </div>
+              <div className="form-group">
+                <label>Senha</label>
+                <input
+                  className="field-input rectangular"
+                  value={editForm.senha}
+                  onChange={(e) => handleEditFormChange('senha', e.target.value)}
+                />
+              </div>
+              <div className="form-group">
+                <label>Função</label>
+                <div className="cargo-dropdown-wrapper" ref={cargoDropdownRef}>
+                  <button
+                    type="button"
+                    className="field-input rectangular cargo-dropdown-trigger"
+                    onClick={() => setShowCargoDropdown(!showCargoDropdown)}
+                  >
+                    {editForm.funcao ? getCargoOptions() : 'Selecione o cargo'}
+                    <span className="dropdown-arrow">▼</span>
+                  </button>
+                  {showCargoDropdown && (
+                    <div className="cargo-dropdown-menu">
+                      <div className="cargo-dropdown-header">Selecione o cargo</div>
+                      <button
+                        type="button"
+                        className="cargo-option"
+                        onClick={() => {
+                          handleEditFormChange('funcao', 'Cadastro')
+                          setShowCargoDropdown(false)
+                        }}
+                      >
+                        Usuário Cadastral
+                      </button>
+                      <button
+                        type="button"
+                        className="cargo-option"
+                        onClick={() => {
+                          handleEditFormChange('funcao', 'Gestão')
+                          setShowCargoDropdown(false)
+                        }}
+                      >
+                        Usuário Gestor
+                      </button>
+                      <button
+                        type="button"
+                        className="cargo-option"
+                        onClick={() => {
+                          handleEditFormChange('funcao', 'Admin')
+                          setShowCargoDropdown(false)
+                        }}
+                      >
+                        Usuário Administrador
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <button
+                type="button"
+                className="primary-button modal-save-button"
+                onClick={handleSaveEdit}
+              >
+                Salvar alterações
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Confirmar Reenvio */}
+      {showReenviarModal && (
+        <div className="modal-overlay" onClick={() => setShowReenviarModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Confirmar Ação</h3>
+              <button
+                type="button"
+                className="modal-close"
+                onClick={() => setShowReenviarModal(false)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              <p className="modal-question">
+                Tem certeza que deseja reenviar o e-mail para este usuário?
+              </p>
+              <p className="modal-warning">
+                Isso irá gerar uma nova senha temporária e invalidar a senha atual.
+              </p>
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="modal-button modal-button-cancel"
+                  onClick={() => setShowReenviarModal(false)}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className="modal-button modal-button-confirm"
+                  onClick={confirmReenviar}
+                >
+                  Sim, Reenviar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Inativar Usuário */}
+      {showInativarModal && (
+        <div className="modal-overlay" onClick={() => setShowInativarModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Confirmar Ação</h3>
+              <button
+                type="button"
+                className="modal-close"
+                onClick={() => setShowInativarModal(false)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              <p className="modal-question">
+                Tem certeza que deseja inativar esse usuário?
+              </p>
+              <p className="modal-warning">
+                O usuário perderá o acesso a conta, tendo que fazer uma nova solicitação de cadastro
+              </p>
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="modal-button modal-button-cancel"
+                  onClick={() => setShowInativarModal(false)}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className="modal-button modal-button-confirm"
+                  onClick={confirmInativar}
+                >
+                  Inativar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }
@@ -1295,7 +1944,8 @@ function App() {
   let pageContent = null
 
   if (activePage === PAGES.UPLOAD) pageContent = <UploadPage />
-  else if (activePage === PAGES.EDIT) pageContent = <EditDataPage />
+  else if (activePage === PAGES.EDIT) pageContent = <EditDataPage onNavigate={setActivePage} />
+  else if (activePage === PAGES.EXPORT) pageContent = <ExportPage />
   else if (activePage === PAGES.HISTORY_REPORTS)
     pageContent = <HistoryReportsPage />
   else if (activePage === PAGES.HISTORY_USERS)
