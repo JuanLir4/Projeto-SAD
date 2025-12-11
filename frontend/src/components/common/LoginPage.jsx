@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import sadLogo from '../../assets/logos/sad.png'
 import sadExtractorLogo from '../../assets/logos/sad-extractor.png'
+import poliLogo from '../../assets/logos/poliupe.png'
+import upeLogo from '../../assets/logos/upe.png'
 import { deriveRoleFromEmail } from '../../utils/roleUtils'
 
 export default function LoginPage({ onLogin, initialDarkMode }) {
@@ -47,6 +49,22 @@ export default function LoginPage({ onLogin, initialDarkMode }) {
           </div>
         </div>
         <div className="top-bar-right">
+          <div className="institutional-logos">
+            <div className="institutional-logo-container">
+              <img
+                src={poliLogo}
+                alt="Escola Politécnica de Pernambuco"
+                className="institutional-logo"
+              />
+            </div>
+            <div className="institutional-logo-container">
+              <img
+                src={upeLogo}
+                alt="Universidade de Pernambuco"
+                className="institutional-logo"
+              />
+            </div>
+          </div>
           <img
             src={sadLogo}
             alt="SAD"

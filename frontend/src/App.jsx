@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import './App.css'
 import sadLogo from './assets/logos/sad.png'
 import sadExtractorLogo from './assets/logos/sad-extractor.png'
+import poliLogo from './assets/logos/poliupe.png'
+import upeLogo from './assets/logos/upe.png'
 
 const PAGES = {
   UPLOAD: 'upload',
@@ -84,6 +86,22 @@ function LoginPage({ onLogin, initialDarkMode }) {
           </div>
         </div>
         <div className="top-bar-right">
+          <div className="institutional-logos">
+            <div className="institutional-logo-container">
+              <img
+                src={poliLogo}
+                alt="Escola Politécnica de Pernambuco"
+                className="institutional-logo"
+              />
+            </div>
+            <div className="institutional-logo-container">
+              <img
+                src={upeLogo}
+                alt="Universidade de Pernambuco"
+                className="institutional-logo"
+              />
+            </div>
+          </div>
           <img
             src={sadLogo}
             alt="SAD"
@@ -227,6 +245,22 @@ function AppHeader({ activePage, user, onNavigate, onLogout, onToggleSidebar, da
         </div>
       </div>
       <div className="top-bar-right">
+        <div className="institutional-logos">
+          <div className="institutional-logo-container">
+            <img
+              src={poliLogo}
+              alt="Escola Politécnica de Pernambuco"
+              className="institutional-logo"
+            />
+          </div>
+          <div className="institutional-logo-container">
+            <img
+              src={upeLogo}
+              alt="Universidade de Pernambuco"
+              className="institutional-logo"
+            />
+          </div>
+        </div>
         <img
           src={sadLogo}
           alt="SAD"
